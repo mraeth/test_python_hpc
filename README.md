@@ -8,7 +8,7 @@ This project compares three approaches for implementing high-performance numeric
 
 All three implementations share the same Python API, allowing direct performance comparison.
 
-## Quick Start
+## Quick Start (CPU)
 
 ```bash
 # 1. Install pybind11
@@ -27,6 +27,70 @@ cd ../..
 # 4. Run the benchmark
 OMP_PROC_BIND=spread OMP_PLACES=threads python benchmark.py
 ```
+
+## Quick Start (GPU - NVIDIA CUDA)
+
+```bash
+# 1. Install pybind11 and JAX with CUDA
+pip install pybind11
+pip install --upgrade "jax[cuda12]"  # or cuda11 for older systems
+
+# 2. Set environment variables for your GPU
+export KOKKOS_ARCH=AMPERE80   # A100
+# export KOKKOS_ARCH=VOLTA70  # V100
+# export KOKKOS_ARCH=HOPPER90 # H100
+# export KOKKOS_ARCH=ADA89    # RTX 4090, L40
+
+# 3. Build Kokkos with CUDA (only needed once)
+./build_kokkos.sh --clean --cuda
+
+# 4. Build the Python module
+cd test_binder
+rm -rf build && mkdir build && cd build
+cmake ..
+make -j4
+cd ../..
+
+# 5. Run the benchmark
+python benchmark.py
+```
+
+## Quick Start (GPU - AMD ROCm)
+
+```bash
+# 1. Install pybind11
+pip install pybind11
+
+# 2. Set environment variables for your GPU
+export KOKKOS_ARCH=MI250X    # MI250X
+# export KOKKOS_ARCH=VEGA90A # MI200 series
+export ROCM_PATH=/opt/rocm   # default ROCm path
+
+# 3. Build Kokkos with HIP (only needed once)
+./build_kokkos.sh --clean --hip
+
+# 4. Build the Python module
+cd test_binder
+rm -rf build && mkdir build && cd build
+cmake ..
+make -j4
+cd ../..
+
+# 5. Run the benchmark
+python benchmark.py
+```
+
+### GPU Architecture Reference
+
+| GPU | KOKKOS_ARCH |
+|-----|-------------|
+| NVIDIA V100 | `VOLTA70` |
+| NVIDIA A100 | `AMPERE80` |
+| NVIDIA A40, RTX 3090 | `AMPERE86` |
+| NVIDIA H100 | `HOPPER90` |
+| NVIDIA L40, RTX 4090 | `ADA89` |
+| AMD MI200 series | `VEGA90A` |
+| AMD MI250X | `MI250X` |
 
 ## Project Structure
 
