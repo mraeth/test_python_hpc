@@ -14,8 +14,8 @@ build/
 *.pyd
 *.dylib
 
-# Generated pybind11 bindings (regenerate with: make generate_bindings)
-*/generated/
+# NOTE: generated/ directories are NOT ignored - bindings are committed to the repo
+# so that clean builds work without Binder installed. Regenerate with: make generate_bindings
 
 # Python cache
 __pycache__/
