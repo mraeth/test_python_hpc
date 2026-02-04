@@ -125,10 +125,41 @@ test_python_hpc/
 - Python >= 3.8
 - pybind11: `pip install pybind11`
 
-### For JAX/PyKokkos implementations
+### For JAX implementation
 
-- JAX: `pip install jax jaxlib`
-- PyKokkos: `pip install pykokkos`
+- JAX (CPU): `pip install jax jaxlib`
+- JAX (GPU): `pip install "jax[cuda12]"`
+
+### For PyKokkos implementation (optional)
+
+PyKokkos requires installation from source:
+
+```bash
+# Clone PyKokkos
+git clone https://github.com/kokkos/pykokkos.git
+cd pykokkos/
+
+# Create conda environment
+conda create -n pyk python=3.11 -y
+conda env update -n pyk -f base/environment.yml
+conda activate pyk
+
+# Install (CPU with OpenMP)
+python install_base.py install -- \
+    -DENABLE_LAYOUTS=ON \
+    -DENABLE_MEMORY_TRAITS=OFF \
+    -DENABLE_VIEW_RANKS=3 \
+    -DENABLE_CUDA=OFF \
+    -DENABLE_OPENMP=ON
+
+# Install (GPU with CUDA)
+python install_base.py install -- \
+    -DENABLE_LAYOUTS=ON \
+    -DENABLE_MEMORY_TRAITS=OFF \
+    -DENABLE_VIEW_RANKS=3 \
+    -DENABLE_CUDA=ON \
+    -DENABLE_OPENMP=ON
+```
 
 ## Common API
 

@@ -5,7 +5,7 @@ Benchmark: Dot Product Performance Comparison.
 Compares:
 - Kokkos + pybind11 (C++ with Python bindings)
 - JAX (XLA JIT compilation)
-- PyKokkos (Python with Kokkos-style parallelism)
+- PyKokkos (Python with Kokkos-style parallelism) [optional]
 - NumPy (optimized C library)
 - Pure Python (naive list iteration)
 """
@@ -15,15 +15,32 @@ import time
 
 import numpy as np
 
-# Import libraries with the same interface
-sys.path.insert(0, "test_binder/python")
-import mylib as kokkos_lib
+# Track which libraries are available
+available_libs = {}
 
-sys.path.insert(0, "test_jax")
-import mylib as jax_lib
+# Import Kokkos library
+try:
+    sys.path.insert(0, "test_binder/python")
+    import mylib as kokkos_lib
+    available_libs["Kokkos"] = kokkos_lib
+except ImportError as e:
+    print(f"Warning: Kokkos library not available: {e}")
 
-sys.path.insert(0, "test_pykokkos")
-import mylib as pykokkos_lib
+# Import JAX library
+try:
+    sys.path.insert(0, "test_jax")
+    import mylib as jax_lib
+    available_libs["JAX"] = jax_lib
+except ImportError as e:
+    print(f"Warning: JAX library not available: {e}")
+
+# Import PyKokkos library (optional - not on PyPI)
+try:
+    sys.path.insert(0, "test_pykokkos")
+    import mylib as pykokkos_lib
+    available_libs["PyKokkos"] = pykokkos_lib
+except ImportError as e:
+    print(f"Note: PyKokkos not available (requires source install): {e}")
 
 
 # ============================================================================
@@ -54,7 +71,7 @@ class NumpyLib:
         return float(np.dot(a.data, b.data))
 
 
-numpy_lib = NumpyLib()
+available_libs["NumPy"] = NumpyLib()
 
 
 # ============================================================================
@@ -88,7 +105,7 @@ class PythonLib:
         return result
 
 
-python_lib = PythonLib()
+available_libs["Python"] = PythonLib()
 
 
 # ============================================================================
@@ -119,24 +136,18 @@ def benchmark(lib, n: int) -> float:
 
 
 def main():
-    # Initialize all libraries
-    kokkos_lib.initialize()
-    jax_lib.initialize()
-    pykokkos_lib.initialize()
-    numpy_lib.initialize()
-    python_lib.initialize()
+    # Initialize all available libraries
+    for name, lib in available_libs.items():
+        lib.initialize()
 
-    libraries = [
-        ("Kokkos", kokkos_lib),
-        ("JAX", jax_lib),
-        ("PyKokkos", pykokkos_lib),
-        ("NumPy", numpy_lib),
-        ("Python", python_lib),
-    ]
+    # Order libraries for display
+    lib_order = ["Kokkos", "JAX", "PyKokkos", "NumPy", "Python"]
+    libraries = [(name, available_libs[name]) for name in lib_order if name in available_libs]
 
     print("=" * 90)
     print("Benchmark: Dot Product Performance Comparison")
     print("=" * 90)
+    print(f"Libraries available: {', '.join(name for name, _ in libraries)}")
     print(f"Iterations per size: {ITERATIONS}")
     print()
 
