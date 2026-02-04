@@ -103,10 +103,29 @@ message(STATUS "Binder executable will be at: ${BINDER_EXECUTABLE}")
 get_target_property(KOKKOS_INCLUDE_DIRS Kokkos::kokkoscore INTERFACE_INCLUDE_DIRECTORIES)
 list(GET KOKKOS_INCLUDE_DIRS 0 KOKKOS_INCLUDE_DIR)
 
+# Get clang resource directory for standard library headers
+execute_process(
+    COMMAND ${LLVM_TOOLS_BINARY_DIR}/clang -print-resource-dir
+    OUTPUT_VARIABLE CLANG_RESOURCE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Find C++ standard library includes
+execute_process(
+    COMMAND ${LLVM_TOOLS_BINARY_DIR}/clang++ -E -x c++ - -v
+    INPUT_FILE /dev/null
+    ERROR_VARIABLE CLANG_VERBOSE_OUTPUT
+    OUTPUT_QUIET
+)
+
+# Ensure generated directory exists
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/generated)
+
 set(GENERATED_BINDINGS "${CMAKE_SOURCE_DIR}/generated/mylib.cpp")
 
 add_custom_command(
     OUTPUT ${GENERATED_BINDINGS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/generated
     COMMAND ${BINDER_EXECUTABLE}
         --root-module mylib
         --prefix ${CMAKE_SOURCE_DIR}/generated/
@@ -118,6 +137,15 @@ add_custom_command(
         -I${CMAKE_SOURCE_DIR}/src
         -I${KOKKOS_INCLUDE_DIR}
         -I${pybind11_INCLUDE_DIR}
+        -I${CLANG_RESOURCE_DIR}/include
+        -I/usr/include/c++/13
+        -I/usr/include/x86_64-linux-gnu/c++/13
+        -I/usr/include/c++/12
+        -I/usr/include/x86_64-linux-gnu/c++/12
+        -I/usr/include/c++/11
+        -I/usr/include/x86_64-linux-gnu/c++/11
+        -I/usr/include
+        -I/usr/include/x86_64-linux-gnu
         -DNDEBUG
     DEPENDS
         ${CMAKE_SOURCE_DIR}/src/mylib.hpp
