@@ -110,13 +110,23 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-# Find C++ standard library includes
-execute_process(
-    COMMAND ${LLVM_TOOLS_BINARY_DIR}/clang++ -E -x c++ - -v
-    INPUT_FILE /dev/null
-    ERROR_VARIABLE CLANG_VERBOSE_OUTPUT
-    OUTPUT_QUIET
-)
+# Find OpenMP
+find_package(OpenMP REQUIRED)
+get_target_property(OpenMP_CXX_INCLUDE_DIRS OpenMP::OpenMP_CXX INTERFACE_INCLUDE_DIRECTORIES)
+if(NOT OpenMP_CXX_INCLUDE_DIRS)
+    # Fallback: find omp.h manually
+    find_path(OpenMP_CXX_INCLUDE_DIRS omp.h
+        PATHS
+            /usr/lib/llvm-18/lib/clang/18/include
+            /usr/lib/llvm-17/lib/clang/17/include
+            /usr/lib/llvm-16/lib/clang/16/include
+            /usr/lib/gcc/x86_64-linux-gnu/13/include
+            /usr/lib/gcc/x86_64-linux-gnu/12/include
+            /usr/lib/gcc/x86_64-linux-gnu/11/include
+            ${CLANG_RESOURCE_DIR}/include
+    )
+endif()
+message(STATUS "OpenMP include dir: ${OpenMP_CXX_INCLUDE_DIRS}")
 
 # Ensure generated directory exists
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/generated)
@@ -138,6 +148,8 @@ add_custom_command(
         -I${KOKKOS_INCLUDE_DIR}
         -I${pybind11_INCLUDE_DIR}
         -I${CLANG_RESOURCE_DIR}/include
+        -I${OpenMP_CXX_INCLUDE_DIRS}
+        -I/usr/lib/llvm-18/lib/clang/18/include
         -I/usr/include/c++/13
         -I/usr/include/x86_64-linux-gnu/c++/13
         -I/usr/include/c++/12
