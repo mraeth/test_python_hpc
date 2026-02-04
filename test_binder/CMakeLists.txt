@@ -144,6 +144,7 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/src/all_includes.hpp
         --
         -std=c++17
+        -fopenmp
         -I${CMAKE_SOURCE_DIR}/src
         -I${KOKKOS_INCLUDE_DIR}
         -I${pybind11_INCLUDE_DIR}
