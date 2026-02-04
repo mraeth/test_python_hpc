@@ -73,7 +73,7 @@ All three implementations expose the same interface:
 import mylib
 
 # Initialize runtime
-mylib.initialize_kokkos()
+mylib.initialize()
 
 # Create arrays
 a = mylib.Array1D(n)

@@ -8,8 +8,10 @@ PYBIND11_MODULE(mylib, m) {
     m.doc() = "Kokkos-based array library with Python bindings";
 
     // Kokkos initialization functions
-    m.def("initialize_kokkos", &initialize_kokkos,
+    m.def("initialize", &initialize_kokkos,
           "Initialize Kokkos runtime");
+    m.def("initialize_kokkos", &initialize_kokkos,
+          "Initialize Kokkos runtime (alias)");
     m.def("is_kokkos_initialized", &is_kokkos_initialized,
           "Check if Kokkos is initialized");
 
