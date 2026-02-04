@@ -2,7 +2,7 @@
 
 This project compares three approaches for implementing high-performance numerical kernels that are called from Python:
 
-1. **Kokkos + pybind11** - C++ kernels with auto-generated Python bindings (via Binder)
+1. **Kokkos + pybind11** - C++ kernels with Python bindings
 2. **JAX** - Pure Python with XLA JIT compilation
 3. **PyKokkos** - Python with Kokkos-style parallel constructs
 
@@ -11,25 +11,22 @@ All three implementations share the same Python API, allowing direct performance
 ## Quick Start
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/mraeth/test_python_hpc.git
-cd test_python_hpc
+# 1. Install pybind11
+pip install pybind11
 
 # 2. Build Kokkos (only needed once)
 ./build_kokkos.sh
 
-# 3. Build the Kokkos + pybind11 module (includes Binder build)
+# 3. Build the Python module
 cd test_binder
-mkdir build && cd build
-cmake .. -DPython3_EXECUTABLE=$(which python)
+mkdir -p build && cd build
+cmake ..
 make -j4
 cd ../..
 
 # 4. Run the benchmark
 OMP_PROC_BIND=spread OMP_PLACES=threads python benchmark.py
 ```
-
-**Note:** The first build will compile Binder from source, which takes some time. Subsequent builds are fast.
 
 ## Project Structure
 
@@ -41,14 +38,11 @@ test_python_hpc/
 ├── _deps/                    # Shared dependencies (generated)
 │   └── kokkos-install/       # Pre-built Kokkos
 ├── test_binder/              # Kokkos + pybind11 implementation
-│   ├── CMakeLists.txt        # Build config (builds Binder, generates bindings)
-│   ├── binder.config         # Binder configuration
+│   ├── CMakeLists.txt        # Build configuration
 │   ├── src/
 │   │   ├── mylib.hpp         # C++ declarations
 │   │   ├── mylib.cpp         # C++ implementations (Kokkos kernels)
-│   │   └── all_includes.hpp  # Master include for Binder
-│   ├── generated/
-│   │   └── mylib.cpp         # pybind11 bindings (auto-generated, committed)
+│   │   └── bindings.cpp      # pybind11 bindings
 │   └── python/               # Output directory (generated)
 │       └── mylib.*.so        # Compiled Python module
 ├── test_jax/                 # JAX implementation
@@ -64,41 +58,12 @@ test_python_hpc/
 - CMake >= 3.16
 - C++17 compiler with OpenMP support
 - Python >= 3.8
-- **LLVM and Clang development libraries** (for building Binder)
 - pybind11: `pip install pybind11`
 
 ### For JAX/PyKokkos implementations
 
 - JAX: `pip install jax jaxlib`
 - PyKokkos: `pip install pykokkos`
-
-### Installing LLVM/Clang
-
-Binder requires LLVM and Clang libraries to build. Install them for your platform:
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install llvm-dev libclang-dev clang
-```
-
-**Fedora/RHEL:**
-```bash
-sudo dnf install llvm-devel clang-devel clang
-```
-
-**macOS (Homebrew):**
-```bash
-brew install llvm
-# Add to PATH and set environment variables:
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-export LLVM_DIR="/opt/homebrew/opt/llvm/lib/cmake/llvm"
-export Clang_DIR="/opt/homebrew/opt/llvm/lib/cmake/clang"
-```
-
-**Conda:**
-```bash
-conda install -c conda-forge llvmdev clangdev
-```
 
 ## Common API
 
@@ -108,7 +73,7 @@ All three implementations expose the same interface:
 import mylib
 
 # Initialize runtime
-mylib.initialize()
+mylib.initialize_kokkos()
 
 # Create arrays
 a = mylib.Array1D(n)
@@ -145,27 +110,12 @@ This creates `_deps/kokkos-install/`.
 
 ```bash
 cd test_binder
-mkdir build && cd build
-cmake .. -DPython3_EXECUTABLE=$(which python)
+mkdir -p build && cd build
+cmake ..
 make -j4
 ```
 
-The build process:
-1. Finds LLVM/Clang on your system
-2. Builds Binder from source (first time only)
-3. Generates pybind11 bindings from C++ headers
-4. Compiles the Python module
-
 The compiled module is placed in `test_binder/python/`.
-
-### 3. Regenerating bindings
-
-Bindings are automatically regenerated when you modify:
-- `src/mylib.hpp`
-- `src/all_includes.hpp`
-- `binder.config`
-
-Just run `make` and the bindings will be updated if needed.
 
 ## Running the Benchmark
 
@@ -201,42 +151,12 @@ Correctness check:
 | Aspect | Kokkos + pybind11 | JAX | PyKokkos |
 |--------|-------------------|-----|----------|
 | Language | C++ | Python | Python |
-| Bindings | Auto-generated (Binder) | None | None |
+| Bindings | Manual (pybind11) | None | None |
 | Build | CMake + make | None | None |
 | JIT | No | Yes (XLA) | Yes |
 | GPU support | Yes (CUDA/HIP) | Yes (CUDA) | Yes (CUDA) |
 | Autodiff | No | Yes | No |
 | Best for | Existing C++ code | New Python projects | Kokkos-style in Python |
-
-## Automatic Binding Generation with Binder
-
-The project uses [Binder](https://github.com/RosettaCommons/binder) to auto-generate pybind11 bindings from C++ headers. Binder is built from source as part of the CMake build process.
-
-### How it works
-
-1. CMake finds LLVM/Clang on your system
-2. Binder is downloaded and built from source (cached in `build/`)
-3. Bindings are generated from `src/all_includes.hpp` using `binder.config`
-4. The generated bindings are written to `generated/mylib.cpp`
-5. The Python module is compiled with the generated bindings
-
-### Configuration Files
-
-**`src/all_includes.hpp`** - Master include file:
-```cpp
-#include "mylib.hpp"
-```
-
-**`binder.config`** - Controls what gets bound:
-```
-+include <mylib.hpp>
-+namespace ::
-+class Array1D
-+function initialize_kokkos
-+function is_kokkos_initialized
-+function dot_product
--namespace Kokkos
-```
 
 ## Adding New Kernels
 
@@ -244,9 +164,36 @@ The project uses [Binder](https://github.com/RosettaCommons/binder) to auto-gene
 
 1. Add declaration to `test_binder/src/mylib.hpp`
 2. Add implementation to `test_binder/src/mylib.cpp`
-3. Update `binder.config` to include new functions
-4. Run `make` (bindings regenerate automatically)
-5. Commit the updated `generated/mylib.cpp`
+3. Add pybind11 bindings to `test_binder/src/bindings.cpp`
+4. Run `make`
+
+Example - adding a new function:
+
+**mylib.hpp:**
+```cpp
+double sum_array(const Array1D& a);
+```
+
+**mylib.cpp:**
+```cpp
+double sum_array(const Array1D& a) {
+    auto va = a.view();
+    double result = 0.0;
+    Kokkos::parallel_reduce("sum", a.size(),
+        KOKKOS_LAMBDA(const int i, double& lsum) {
+            lsum += va(i);
+        },
+        result
+    );
+    return result;
+}
+```
+
+**bindings.cpp:**
+```cpp
+m.def("sum_array", &sum_array, py::arg("a"),
+      "Compute sum of array elements");
+```
 
 ### JAX
 
