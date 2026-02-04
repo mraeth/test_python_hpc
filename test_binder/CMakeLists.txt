@@ -145,12 +145,11 @@ add_custom_command(
         --
         -std=c++17
         -fopenmp
+        -I${CLANG_RESOURCE_DIR}/include
+        -I/usr/lib/llvm-18/lib/clang/18/include
         -I${CMAKE_SOURCE_DIR}/src
         -I${KOKKOS_INCLUDE_DIR}
         -I${pybind11_INCLUDE_DIR}
-        -I${CLANG_RESOURCE_DIR}/include
-        -I${OpenMP_CXX_INCLUDE_DIRS}
-        -I/usr/lib/llvm-18/lib/clang/18/include
         -I/usr/include/c++/13
         -I/usr/include/x86_64-linux-gnu/c++/13
         -I/usr/include/c++/12
