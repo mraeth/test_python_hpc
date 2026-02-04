@@ -46,7 +46,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: _deps/kokkos-install
-        key: kokkos-${{ env.KOKKOS_VERSION }}-cpu-${{ runner.os }}
+        key: kokkos-${{ env.KOKKOS_VERSION }}-cpu-${{ runner.os }}-v2
 
     - name: Build Kokkos
       if: steps.cache-kokkos.outputs.cache-hit != 'true'
