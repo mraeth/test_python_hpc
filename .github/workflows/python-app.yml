@@ -25,12 +25,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v3
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
       with:
-        auto-update-conda: true
         python-version: "3.11"
-        activate-environment: benchmark
 
     - name: Install system dependencies
       run: |
@@ -38,18 +36,10 @@ jobs:
         sudo apt-get install -y cmake build-essential libomp-dev
 
     - name: Install Python dependencies
-      shell: bash -el {0}
       run: |
+        python -m pip install --upgrade pip
         pip install pybind11 numpy jax jaxlib
-
-    - name: Install PyKokkos from source
-      shell: bash -el {0}
-      run: |
-        git clone --depth 1 https://github.com/kokkos/pykokkos.git /tmp/pykokkos
-        cd /tmp/pykokkos
-        conda env update -n benchmark -f base/environment.yml
-        python install_base.py install -- -DENABLE_LAYOUTS=ON -DENABLE_MEMORY_TRAITS=OFF -DENABLE_VIEW_RANKS=3 -DENABLE_CUDA=OFF -DENABLE_THREADS=OFF -DENABLE_OPENMP=ON
-      continue-on-error: true  # Don't fail if PyKokkos install fails
+        # PyKokkos requires complex source install, skipped in CI
 
     - name: Cache Kokkos build
       id: cache-kokkos
@@ -60,12 +50,10 @@ jobs:
 
     - name: Build Kokkos
       if: steps.cache-kokkos.outputs.cache-hit != 'true'
-      shell: bash -el {0}
       run: |
         ./build_kokkos.sh
 
     - name: Build Python module
-      shell: bash -el {0}
       run: |
         cd test_binder
         mkdir -p build && cd build
@@ -73,7 +61,6 @@ jobs:
         make -j$(nproc)
 
     - name: Run benchmark (CPU)
-      shell: bash -el {0}
       run: |
         export OMP_PROC_BIND=spread
         export OMP_PLACES=threads
@@ -82,7 +69,6 @@ jobs:
         python benchmark.py
 
     - name: Run complexity comparison
-      shell: bash -el {0}
       run: |
         python compare_complexity.py
 
