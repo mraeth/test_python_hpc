@@ -84,6 +84,7 @@ python benchmark.py
 
 | GPU | KOKKOS_ARCH |
 |-----|-------------|
+| NVIDIA T4 (GitHub CI) | `TURING75` |
 | NVIDIA V100 | `VOLTA70` |
 | NVIDIA A100 | `AMPERE80` |
 | NVIDIA A40, RTX 3090 | `AMPERE86` |

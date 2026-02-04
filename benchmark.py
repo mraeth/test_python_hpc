@@ -141,7 +141,7 @@ def main():
     print()
 
     # Array sizes to test (smaller max for pure Python)
-    sizes = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
+    sizes = [1_000, 10_000, 100_000, 1_000_000, 10_000_000]
 
     # Build header
     header = f"{'Size':>12}"

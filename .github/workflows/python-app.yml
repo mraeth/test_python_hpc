@@ -1,39 +1,185 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python application
+# CI workflow for CPU and GPU benchmarks
+name: Benchmark CI
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: read
 
-jobs:
-  build:
+env:
+  KOKKOS_VERSION: "4.5.01"
 
+jobs:
+  # ==========================================================================
+  # CPU Benchmark (GitHub-hosted runner)
+  # ==========================================================================
+  benchmark-cpu:
+    name: CPU Benchmark
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
-    - name: Install dependencies
+        python-version: "3.11"
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libomp-dev
+
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
+        pip install pybind11 numpy jax jaxlib pykokkos
+
+    - name: Cache Kokkos build
+      id: cache-kokkos
+      uses: actions/cache@v4
+      with:
+        path: _deps/kokkos-install
+        key: kokkos-${{ env.KOKKOS_VERSION }}-cpu-${{ runner.os }}
+
+    - name: Build Kokkos
+      if: steps.cache-kokkos.outputs.cache-hit != 'true'
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+        ./build_kokkos.sh
+
+    - name: Build Python module
       run: |
-        pytest
+        cd test_binder
+        mkdir -p build && cd build
+        cmake ..
+        make -j$(nproc)
+
+    - name: Run benchmark (CPU)
+      run: |
+        export OMP_PROC_BIND=spread
+        export OMP_PLACES=threads
+        export OMP_NUM_THREADS=$(nproc)
+        echo "Running CPU benchmark with $OMP_NUM_THREADS threads"
+        python benchmark.py
+
+    - name: Run complexity comparison
+      run: |
+        python compare_complexity.py
+
+  # ==========================================================================
+  # GPU Benchmark (GitHub-hosted GPU runner - T4)
+  # Requires GitHub Team/Enterprise or pay-as-you-go billing
+  # ==========================================================================
+  benchmark-gpu:
+    name: GPU Benchmark (T4)
+    runs-on: ubuntu-latest-gpu-t4
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[gpu]')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check GPU availability
+      run: |
+        nvidia-smi
+        nvcc --version || echo "nvcc not in PATH, checking CUDA installation..."
+        ls /usr/local/cuda*/bin/nvcc || true
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pybind11 numpy
+        pip install --upgrade "jax[cuda12]"
+
+    - name: Set GPU environment
+      run: |
+        # T4 is Turing architecture
+        echo "KOKKOS_ARCH=TURING75" >> $GITHUB_ENV
+        # Find CUDA
+        if [ -d "/usr/local/cuda" ]; then
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+          echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Build Kokkos with CUDA
+      run: |
+        ./build_kokkos.sh --clean --cuda
+
+    - name: Build Python module
+      run: |
+        cd test_binder
+        mkdir -p build && cd build
+        cmake ..
+        make -j$(nproc)
+
+    - name: Run benchmark (GPU)
+      run: |
+        echo "Running GPU benchmark on T4"
+        nvidia-smi
+        python benchmark.py
+
+  # ==========================================================================
+  # GPU Benchmark (Linux 4-GPU - for larger workloads)
+  # ==========================================================================
+  benchmark-gpu-large:
+    name: GPU Benchmark (4x T4)
+    runs-on: ubuntu-latest-gpu-4-t4
+    if: github.event_name == 'workflow_dispatch' && contains(github.event.inputs.large_gpu, 'true')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check GPU availability
+      run: |
+        nvidia-smi
+        echo "Number of GPUs:"
+        nvidia-smi --query-gpu=name --format=csv,noheader | wc -l
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+        python -m pip install --upgrade pip
+        pip install pybind11 numpy "jax[cuda12]"
+
+    - name: Set GPU environment
+      run: |
+        echo "KOKKOS_ARCH=TURING75" >> $GITHUB_ENV
+        if [ -d "/usr/local/cuda" ]; then
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+        fi
+
+    - name: Build Kokkos with CUDA
+      run: |
+        ./build_kokkos.sh --clean --cuda
+
+    - name: Build Python module
+      run: |
+        cd test_binder
+        mkdir -p build && cd build
+        cmake ..
+        make -j$(nproc)
+
+    - name: Run benchmark (Multi-GPU)
+      run: |
+        echo "Running benchmark on 4x T4 GPUs"
+        python benchmark.py

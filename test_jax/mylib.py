@@ -74,9 +74,10 @@ class Array1D:
 # ============================================================================
 
 @jax.jit
-def _dot_product_impl(a: jnp.ndarray, b: jnp.ndarray) -> float:
-    """Internal JIT-compiled dot product."""
-    return jnp.sum(a * b)
+def _dot_product_impl(a: jnp.ndarray, b: jnp.ndarray) -> jnp.ndarray:
+    """Internal JIT-compiled dot product using optimized BLAS."""
+    # jnp.dot uses optimized BLAS (MKL on CPU, cuBLAS on GPU)
+    return jnp.dot(a, b)
 
 
 def dot_product(a: Array1D, b: Array1D) -> float:
@@ -84,6 +85,8 @@ def dot_product(a: Array1D, b: Array1D) -> float:
     if a.size() != b.size():
         raise RuntimeError("Size mismatch in dot_product")
     result = _dot_product_impl(a.data, b.data)
+    # block_until_ready() ensures computation completes (important for GPU)
+    result.block_until_ready()
     return float(result)
 
 
