@@ -88,6 +88,7 @@ ExternalProject_Add(binder_project
         -DLLVM_DIR=${LLVM_DIR}
         -DClang_DIR=${Clang_DIR}
         -DCMAKE_BUILD_TYPE=Release
+        -DBINDER_ENABLE_TEST=OFF
     BUILD_BYPRODUCTS ${BINDER_EXECUTABLE}
 )
 
