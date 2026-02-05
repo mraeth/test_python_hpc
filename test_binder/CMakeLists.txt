@@ -1,4 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
+
+# ============================================================================
+# Use nvcc_wrapper for CUDA builds (must be set before project())
+# ============================================================================
+set(KOKKOS_PREBUILT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../_deps/kokkos-install")
+set(NVCC_WRAPPER "${KOKKOS_PREBUILT_DIR}/bin/nvcc_wrapper")
+
+if(EXISTS "${NVCC_WRAPPER}" AND NOT CMAKE_CXX_COMPILER)
+    message(STATUS "Using Kokkos nvcc_wrapper: ${NVCC_WRAPPER}")
+    set(CMAKE_CXX_COMPILER "${NVCC_WRAPPER}")
+endif()
+
 project(mylib_kokkos)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,7 +25,6 @@ include(FetchContent)
 # ============================================================================
 # Kokkos - fetch or use pre-built
 # ============================================================================
-set(KOKKOS_PREBUILT_DIR "${CMAKE_SOURCE_DIR}/../_deps/kokkos-install")
 
 if(EXISTS "${KOKKOS_PREBUILT_DIR}/lib/cmake/Kokkos/KokkosConfig.cmake" OR
    EXISTS "${KOKKOS_PREBUILT_DIR}/lib64/cmake/Kokkos/KokkosConfig.cmake")
