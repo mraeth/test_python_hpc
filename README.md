@@ -216,31 +216,38 @@ The compiled module is placed in `test_binder/python/`.
 ## Running the Benchmark
 
 ```bash
-OMP_PROC_BIND=spread OMP_PLACES=threads python benchmark.py
+python benchmark.py
 ```
 
-Example output:
+### CPU Results (OpenMP)
 
 ```
-======================================================================
-Benchmark: Dot Product Performance Comparison
-======================================================================
-Iterations per size: 100
-
-        Size    Kokkos (ms)       JAX (ms)  PyKokkos (ms)
----------------------------------------------------------
-       1,000         0.006         0.006         0.140
-      10,000         0.097         0.028         0.474
-     100,000         2.804         1.589         1.178
-   1,000,000         8.140         8.380         9.139
-  10,000,000        30.192        29.268        29.723
----------------------------------------------------------
-
-Correctness check:
-  Kokkos    : dot([1.0, 2.0, 3.0, 4.0, 5.0], [5.0, 4.0, 3.0, 2.0, 1.0]) = 35.0
-  JAX       : dot([1.0, 2.0, 3.0, 4.0, 5.0], [5.0, 4.0, 3.0, 2.0, 1.0]) = 35.0
-  PyKokkos  : dot([1.0, 2.0, 3.0, 4.0, 5.0], [5.0, 4.0, 3.0, 2.0, 1.0]) = 35.0
+        Size  Kokkos (ms)     JAX (ms) PyKokkos (ms)   NumPy (ms)  Python (ms)
+------------------------------------------------------------------------------
+       1,000       0.0017       0.0025       0.0028       0.0007       0.0360
+      10,000       0.0025       0.0024       0.0024       0.0018       0.3206
+     100,000       0.0155       0.0073       0.0076       0.0031       3.4104
+   1,000,000       0.0929       0.0886       0.0998       0.0300      32.3268
+  10,000,000       3.2805       3.3127       3.2148       3.0832       (skip)
+------------------------------------------------------------------------------
 ```
+
+### GPU Results (NVIDIA A100)
+
+```
+        Size  Kokkos (ms)     JAX (ms) PyKokkos (ms)   NumPy (ms)  Python (ms)
+------------------------------------------------------------------------------
+       1,000       0.0211       0.0209       0.0211       0.0013       0.0611
+      10,000       0.0211       0.0211       0.0210       0.0047       0.6312
+     100,000       0.0225       0.0223       0.0224       0.0158       6.4613
+   1,000,000       0.0268       0.0265       0.0266       0.1025      65.3419
+  10,000,000       0.1652       0.1666       0.1652       1.2505       (skip)
+------------------------------------------------------------------------------
+```
+
+### Note on OpenMP Initialization
+
+When using the Kokkos module (compiled with `-O3`), it initializes the OpenMP runtime at import time. This initialization affects **all** OpenMP-based libraries in the Python process, including JAX and PyKokkos. Compiling the Kokkos module with `-O3` is critical for optimal performance - without it, all OpenMP-based libraries will run significantly slower (up to 7x) due to suboptimal OpenMP runtime configuration. The CMakeLists.txt includes `-O3` by default.
 
 ## Comparison
 
