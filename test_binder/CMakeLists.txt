@@ -4,6 +4,8 @@ project(mylib_kokkos)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 include(FetchContent)
@@ -46,6 +48,7 @@ if(NOT pybind11_result EQUAL 0)
     message(FATAL_ERROR "Could not find pybind11. Install with: pip install pybind11")
 endif()
 
+set(PYBIND11_CPP_STANDARD -std=c++17) 
 find_package(pybind11 REQUIRED)
 
 # ============================================================================
@@ -56,9 +59,13 @@ pybind11_add_module(mylib
     src/bindings.cpp
 )
 
+set_target_properties(mylib PROPERTIES 
+    INTERPROCEDURAL_OPTIMIZATION OFF
+    CXX_VISIBILITY_PRESET default
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/python
+)
+
 target_include_directories(mylib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(mylib PRIVATE Kokkos::kokkos)
 
-set_target_properties(mylib PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/python
-)
+target_compile_options(mylib PRIVATE -std=c++17)
